@@ -118,12 +118,23 @@
                             <div class="col-md-6">
                                 <h6 class="text-muted mb-1">Service {{ $index + 1 }}</h6>
                                 <p class="mb-2">{{ $item->service->name }}</p>
-                                <small class="text-muted">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Quantity</small>
+                                        <strong class="text-primary">{{ $item->quantity }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Unit Price</small>
+                                        <strong>Rs{{ number_format($item->unit_price, 0) }}</strong>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted d-block">Total Price</small>
+                                    <strong class="text-success">Rs{{ number_format($item->total_price, 0) }}</strong>
+                                </div>
+                                <small class="text-muted mt-2 d-block">
                                     {{ ucfirst($item->service->gender) }} • 
                                     {{ ucfirst($item->service->service_category) }}
-                                    @if($item->quantity > 1)
-                                        • Qty: {{ $item->quantity }}
-                                    @endif
                                 </small>
                             </div>
                             <div class="col-md-6">
@@ -131,7 +142,10 @@
                                     <h6 class="text-muted mb-1">Design</h6>
                                     <p class="mb-2">{{ $item->designCatalog->title }}</p>
                                     @if($item->designCatalog->description)
-                                        <small class="text-muted">{{ $item->designCatalog->description }}</small>
+                                        <small class="text-muted d-block">{{ $item->designCatalog->description }}</small>
+                                    @endif
+                                    @if($item->designCatalog->price_adjustment > 0)
+                                        <small class="text-success d-block">+Rs{{ number_format($item->designCatalog->price_adjustment, 0) }} design fee</small>
                                     @endif
                                     @if($item->designCatalog->image_path)
                                         <div class="mt-2">
@@ -139,9 +153,13 @@
                                                  alt="Design" class="img-thumbnail" style="max-width: 100px;">
                                         </div>
                                     @endif
+                                    <div class="mt-2">
+                                        <small class="text-info">Applied to all {{ $item->quantity }} piece(s)</small>
+                                    </div>
                                 @else
                                     <h6 class="text-muted mb-1">Design</h6>
                                     <p class="text-muted">No design selected</p>
+                                    <small class="text-muted">{{ $item->quantity }} piece(s) without design</small>
                                 @endif
                             </div>
                         </div>
@@ -299,17 +317,31 @@
                     <tr>
                         <th>Service</th>
                         <th>Design</th>
-                        <th>Qty</th>
-                        <th class="text-end">Amount</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Total Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($booking->bookingItems as $item)
                         <tr>
-                            <td>{{ $item->service->name }}</td>
-                            <td>{{ $item->designCatalog->title ?? 'No Design' }}</td>
-                            <td>{{ $item->quantity }}</td>
-                            <td class="text-end">Rs{{ number_format($item->total_price, 0) }}</td>
+                            <td>
+                                {{ $item->service->name }}
+                                <br><small class="text-muted">{{ ucfirst($item->service->gender) }}</small>
+                            </td>
+                            <td>
+                                {{ $item->designCatalog->title ?? 'No Design' }}
+                                @if($item->designCatalog && $item->designCatalog->price_adjustment > 0)
+                                    <br><small class="text-success">+Rs{{ number_format($item->designCatalog->price_adjustment, 0) }}</small>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ $item->quantity }}</strong>
+                            </td>
+                            <td class="text-end">Rs{{ number_format($item->unit_price, 0) }}</td>
+                            <td class="text-end">
+                                <strong>Rs{{ number_format($item->total_price, 0) }}</strong>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

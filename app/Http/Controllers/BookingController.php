@@ -63,6 +63,8 @@ class BookingController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'services' => 'required|array|min:1',
             'services.*' => 'required|exists:services,id',
+            'quantities' => 'required|array',
+            'quantities.*' => 'required|integer|min:1|max:10',
             'booking_date' => 'required|date',
             'delivery_date' => 'required|date|after_or_equal:booking_date',
             'total_amount' => 'required|numeric|min:0',
@@ -73,22 +75,32 @@ class BookingController extends Controller
         ]);
 
         // Create the main booking record
-        $bookingData = $request->except(['services']);
+        $bookingData = $request->except(['services', 'quantities', 'service_designs']);
         $bookingData['remaining_amount'] = $bookingData['total_amount'] - ($bookingData['advance_amount'] ?? 0);
 
         $booking = Booking::create($bookingData);
 
-        // Create BookingItem records for each selected service
+        // Create BookingItem records for each selected service with quantities
         $services = \App\Models\Service::whereIn('id', $request->services)->get();
         
         foreach ($services as $service) {
+            $quantity = $request->quantities[$service->id] ?? 1;
+            $unitPrice = $service->price;
+            $totalPrice = $unitPrice * $quantity;
+            
+            // Get design for this service if selected
+            $designId = null;
+            if ($request->has('service_designs') && isset($request->service_designs[$service->id])) {
+                $designId = $request->service_designs[$service->id];
+            }
+            
             \App\Models\BookingItem::create([
                 'booking_id' => $booking->id,
                 'service_id' => $service->id,
-                'design_catalog_id' => null, // Will be set later when designs are selected per service
-                'quantity' => 1,
-                'unit_price' => $service->price,
-                'total_price' => $service->price * 1,
+                'design_catalog_id' => $designId,
+                'quantity' => $quantity,
+                'unit_price' => $unitPrice,
+                'total_price' => $totalPrice,
                 'notes' => null
             ]);
         }

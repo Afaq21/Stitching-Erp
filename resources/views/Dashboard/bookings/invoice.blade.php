@@ -179,8 +179,9 @@
             <tr>
                 <th>Service</th>
                 <th>Design</th>
-                <th>Category</th>
-                <th style="text-align: right;">Amount</th>
+                <th style="text-align: center;">Qty</th>
+                <th style="text-align: right;">Unit Price</th>
+                <th style="text-align: right;">Total Amount</th>
             </tr>
         </thead>
         <tbody>
@@ -188,22 +189,41 @@
             <tr>
                 <td>
                     <strong>{{ $item->service->name }}</strong>
+                    <br><small style="color: #666;">{{ ucfirst($item->service->gender) }} • {{ ucfirst($item->service->service_category) }}</small>
                     @if($item->service->description)
                         <br><small style="color: #666;">{{ $item->service->description }}</small>
                     @endif
                 </td>
                 <td>
                     @if($item->designCatalog)
-                        {{ $item->designCatalog->title }}
+                        <strong>{{ $item->designCatalog->title }}</strong>
+                        @if($item->designCatalog->description)
+                            <br><small style="color: #666;">{{ $item->designCatalog->description }}</small>
+                        @endif
                         @if($item->designCatalog->price_adjustment > 0)
-                            <br><small style="color: #28a745;">+Rs{{ number_format($item->designCatalog->price_adjustment, 0) }}</small>
+                            <br><small style="color: #28a745;">+Rs{{ number_format($item->designCatalog->price_adjustment, 0) }} design fee</small>
                         @endif
                     @else
                         <span style="color: #666;">No Design Selected</span>
                     @endif
                 </td>
-                <td>{{ ucfirst($item->service->service_category) }}</td>
-                <td style="text-align: right;">Rs{{ number_format($item->total_price, 0) }}</td>
+                <td style="text-align: center;">
+                    <strong style="font-size: 16px; color: #667eea;">{{ $item->quantity }}</strong>
+                    @if($item->quantity > 1)
+                        <br><small style="color: #666;">pieces</small>
+                    @else
+                        <br><small style="color: #666;">piece</small>
+                    @endif
+                </td>
+                <td style="text-align: right;">
+                    <strong>Rs{{ number_format($item->unit_price, 0) }}</strong>
+                </td>
+                <td style="text-align: right;">
+                    <strong style="color: #28a745;">Rs{{ number_format($item->total_price, 0) }}</strong>
+                    @if($item->quantity > 1)
+                        <br><small style="color: #666;">{{ $item->quantity }} × Rs{{ number_format($item->unit_price, 0) }}</small>
+                    @endif
+                </td>
             </tr>
             @endforeach
         </tbody>

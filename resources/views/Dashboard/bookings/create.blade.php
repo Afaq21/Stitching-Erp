@@ -114,6 +114,32 @@
         color: white;
     }
 
+    .quantity-section {
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 1rem;
+    }
+
+    .quantity-controls .btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .quantity-input {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #333;
+    }
+
+    .quantity-input:focus {
+        background: white;
+        border-color: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+    }
+
     .design-card {
         border: 1px solid #e9ecef;
         border-radius: 8px;
@@ -349,6 +375,31 @@
                                                 <div class="service-check-icon" style="display: none;">
                                                     <i class="ri-check-line text-white"></i>
                                                 </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Quantity Section (hidden by default) -->
+                                        <div class="quantity-section mt-3" style="display: none;" id="quantity_{{ $service->id }}" onclick="event.stopPropagation()">>
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <label class="form-label mb-0 text-white">Quantity:</label>
+                                                <div class="quantity-controls d-flex align-items-center">
+                                                    <button type="button" class="btn btn-sm btn-outline-light" onclick="event.stopPropagation(); decreaseQuantity({{ $service->id }})">
+                                                        <i class="ri-subtract-line"></i>
+                                                    </button>
+                                                    <input type="number" name="quantities[{{ $service->id }}]" 
+                                                           value="1" min="1" max="10" 
+                                                           class="form-control form-control-sm mx-2 text-center quantity-input" 
+                                                           style="width: 60px;" 
+                                                           id="qty_{{ $service->id }}"
+                                                           onchange="updateServiceQuantity({{ $service->id }}, this.value)"
+                                                           onclick="event.stopPropagation()">>
+                                                    <button type="button" class="btn btn-sm btn-outline-light" onclick="event.stopPropagation(); increaseQuantity({{ $service->id }})">
+                                                        <i class="ri-add-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2 text-center">
+                                                <small class="text-white-50">Subtotal: Rs<span id="subtotal_{{ $service->id }}">{{ number_format($service->price, 0) }}</span></small>
                                             </div>
                                         </div>
                                     </div>
@@ -896,17 +947,19 @@
     });
 
     // Service selection
-    // Service selection (multiple)
+    // Service selection (multiple) with quantity support
     function toggleService(serviceId, serviceName, servicePrice) {
         const checkbox = document.getElementById(`service_${serviceId}`);
         const serviceCard = checkbox.closest('.service-card');
         const checkIcon = serviceCard.querySelector('.service-check-icon');
+        const quantitySection = document.getElementById(`quantity_${serviceId}`);
 
         if (checkbox.checked) {
             // Unselect service
             checkbox.checked = false;
             serviceCard.classList.remove('selected');
             checkIcon.style.display = 'none';
+            quantitySection.style.display = 'none';
 
             // Remove from selectedServices array
             selectedServices = selectedServices.filter(service => service.id !== serviceId);
@@ -915,12 +968,15 @@
             checkbox.checked = true;
             serviceCard.classList.add('selected');
             checkIcon.style.display = 'block';
+            quantitySection.style.display = 'block';
 
-            // Add to selectedServices array
+            // Add to selectedServices array with quantity
             selectedServices.push({
                 id: serviceId,
                 name: serviceName,
-                price: servicePrice
+                price: servicePrice,
+                quantity: 1,
+                totalPrice: servicePrice
             });
         }
 
@@ -929,6 +985,64 @@
         
         // Save state when services are selected/deselected
         saveCurrentState();
+    }
+
+    // Quantity management functions
+    function increaseQuantity(serviceId) {
+        const qtyInput = document.getElementById(`qty_${serviceId}`);
+        const currentQty = parseInt(qtyInput.value);
+        if (currentQty < 10) {
+            const newQty = currentQty + 1;
+            qtyInput.value = newQty;
+            updateServiceQuantity(serviceId, newQty);
+        }
+    }
+
+    function decreaseQuantity(serviceId) {
+        const qtyInput = document.getElementById(`qty_${serviceId}`);
+        const currentQty = parseInt(qtyInput.value);
+        if (currentQty > 1) {
+            const newQty = currentQty - 1;
+            qtyInput.value = newQty;
+            updateServiceQuantity(serviceId, newQty);
+        }
+    }
+
+    function updateServiceQuantity(serviceId, quantity) {
+        const qty = parseInt(quantity);
+        if (qty < 1 || qty > 10) return;
+
+        // Update in selectedServices array
+        const service = selectedServices.find(s => s.id === serviceId);
+        if (service) {
+            service.quantity = qty;
+            service.totalPrice = service.price * qty;
+            
+            // Update subtotal display in the service card
+            const subtotalElement = document.getElementById(`subtotal_${serviceId}`);
+            if (subtotalElement) {
+                subtotalElement.textContent = service.totalPrice.toLocaleString();
+            }
+            
+            // Ensure service card stays selected
+            const serviceCard = document.getElementById(`service_${serviceId}`).closest('.service-card');
+            const checkbox = document.getElementById(`service_${serviceId}`);
+            const checkIcon = serviceCard.querySelector('.service-check-icon');
+            const quantitySection = document.getElementById(`quantity_${serviceId}`);
+            
+            // Maintain selected state
+            if (!serviceCard.classList.contains('selected')) {
+                serviceCard.classList.add('selected');
+                checkbox.checked = true;
+                checkIcon.style.display = 'block';
+                quantitySection.style.display = 'block';
+            }
+            
+            // Update summary section
+            updateSelectedServicesSummary();
+            updateTotalAmount();
+            saveCurrentState();
+        }
     }
 
     function updateSelectedServicesSummary() {
@@ -945,14 +1059,18 @@
         let totalAmount = 0;
 
         selectedServices.forEach(service => {
-            totalAmount += parseFloat(service.price);
+            const serviceTotal = service.totalPrice || (service.price * (service.quantity || 1));
+            totalAmount += serviceTotal;
             html += `
                 <div class="col-md-6 mb-2">
                     <div class="card border-success">
                         <div class="card-body p-2">
                             <div class="d-flex justify-content-between">
-                                <span class="small">${service.name}</span>
-                                <strong class="small text-success">Rs${Number(service.price).toLocaleString()}</strong>
+                                <span class="small">${service.name} × ${service.quantity || 1}</span>
+                                <strong class="small text-success">Rs${serviceTotal.toLocaleString()}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Unit: Rs${Number(service.price).toLocaleString()}</small>
                             </div>
                         </div>
                     </div>
@@ -966,7 +1084,9 @@
     }
 
     function updateTotalAmount() {
-        const totalAmount = selectedServices.reduce((sum, service) => sum + parseFloat(service.price), 0);
+        const totalAmount = selectedServices.reduce((sum, service) => {
+            return sum + (service.totalPrice || (service.price * (service.quantity || 1)));
+        }, 0);
         document.getElementById('totalAmount').value = totalAmount;
         updatePaymentSummary();
     }
@@ -1397,11 +1517,16 @@
                     <h2 class="accordion-header" id="designHeading${service.id}">
                         <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#designCollapse${service.id}">
                             <i class="ri-palette-line me-2"></i>
-                            ${service.name} Designs
+                            ${service.name} Designs (Qty: ${service.quantity || 1})
+                            <small class="ms-2 text-muted">- Same design will apply to all ${service.quantity || 1} pieces</small>
                         </button>
                     </h2>
                     <div id="designCollapse${service.id}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" data-bs-parent="#designsAccordion">
                         <div class="accordion-body">
+                            <div class="alert alert-info mb-3">
+                                <i class="ri-information-line me-2"></i>
+                                <strong>Note:</strong> The selected design will be applied to all ${service.quantity || 1} pieces of ${service.name}.
+                            </div>
                             <div id="designs_${service.id}">
                                 <div class="text-center">
                                     <i class="ri-loader-4-line spin"></i> Loading designs...
